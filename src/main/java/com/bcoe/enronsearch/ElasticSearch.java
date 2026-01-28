@@ -164,7 +164,7 @@ public class ElasticSearch {
 		}
 	}
 
-	public SearchResponse search(String query) {
+	public SearchResponse search(String query, int from, int size) {
 		return client
 				.prepareSearch(indexName)
 				.setTypes(mappingName)
@@ -173,8 +173,8 @@ public class ElasticSearch {
 						QueryBuilders.queryString(query).field("_all")
 								.lenient(true).autoGeneratePhraseQueries(true)
 								.analyzeWildcard(true).phraseSlop(10)
-								.lowercaseExpandedTerms(false)).setFrom(0)
-				.setSize(30).addHighlightedField("to", 0, 0)
+								.lowercaseExpandedTerms(false)).setFrom(from)
+				.setSize(size).addHighlightedField("to", 0, 0)
 				.addHighlightedField("from", 0, 0).execute().actionGet();
 	}
 

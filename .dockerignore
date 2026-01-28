@@ -1,0 +1,7 @@
+.git
+.gitignore
+*.md
+target/
+enron_mail_*
+*.tar.gz
+*.log

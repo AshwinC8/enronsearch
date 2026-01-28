@@ -1,0 +1,36 @@
+services:
+  elasticsearch:
+    image: elasticsearch:1.7.6
+    container_name: enron-elasticsearch
+    environment:
+      - cluster.name=elasticsearch
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms200m -Xmx200m
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  webapp:
+    build: .
+    container_name: enron-webapp
+    ports:
+      - "80:4567"
+    environment:
+      - ES_HOST=elasticsearch
+      - ES_PORT=9300
+      - ES_CLUSTER_NAME=elasticsearch
+      - PORT=4567
+      - ADMIN_KEY=${ADMIN_KEY:-changeme}
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+volumes:
+  esdata:

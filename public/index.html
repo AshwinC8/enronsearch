@@ -32,8 +32,27 @@
         </div>
 
         <div id="terms"></div>
+
+        <div class="bookmarks-toggle">
+            <a href="#" id="show-bookmarks">View Saved Emails <span id="bookmark-count"></span></a>
+        </div>
+    </div>
+
+    <!-- Bookmarks Panel -->
+    <div id="bookmarks-panel" class="bookmarks-panel hidden">
+        <div class="bookmarks-header">
+            <h2>Saved Emails</h2>
+            <a href="#" id="close-bookmarks">Close</a>
+        </div>
+        <div id="bookmarks-list"></div>
     </div>
 
     <div id="search-results"></div>
+
+    <div id="pagination" class="pagination hidden">
+        <button id="prev-page" class="page-btn">Previous</button>
+        <span id="page-info"></span>
+        <button id="next-page" class="page-btn">Next</button>
+    </div>
   </body>
 </html>
