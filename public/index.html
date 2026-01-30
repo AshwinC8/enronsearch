@@ -1,58 +1,193 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
   <head>
-    <title>Enron Email Dataset</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enron Archive — Email Search</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300;1,9..40,400&display=swap" rel="stylesheet">
     <link rel="stylesheet" type="text/css" href="./app.css">
     <script type="text/javascript" src="./javascripts/jquery.js"></script>
     <script type="text/javascript" src="./javascripts/underscore.js"></script>
     <script type="text/javascript" src="./javascripts/enron-search.js"></script>
     <script type="text/javascript">
-        $(document).ready(function() {
-            new EnronSearch({
-                searchInput: $('#search-input'),
-                searchResults: $('#search-results'),
-                highlights: $('#highlights'),
-                terms: $('#terms')
-            }).search();
-        });
+      $(document).ready(function() {
+        new EnronSearch({
+          searchInput: $('#search-input'),
+          searchResults: $('#email-list'),
+          highlights: $('#highlights'),
+          terms: $('#terms')
+        }).search();
+      });
     </script>
   </head>
   <body>
-    <img src="./logo.png" class="logo"/>
-
-    <div class="search-box">
-        <p>
-        <a href="http://www.elasticsearch.org/">ElasticSearch</a> index of CMU's <a href="https://www.cs.cmu.edu/~enron/">Enron Email Dataset</a>. Use tab to complete suggestions, hit enter to search, see what fun emails you can find!
-        <br /><br />
-        <a href="https://github.com/bcoe/enronsearch">https://github.com/bcoe/enronsearch</a>
-        </p>
-
-        <div class="wrapper">
-            <input type="text" id="search-input" />
-            <div id="highlights" class="button hidden"></div>
+    <div class="app-container">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <h1 class="logo">Enron<br><span>Archive</span></h1>
         </div>
 
-        <div id="terms"></div>
+        <nav class="sidebar-nav">
+          <a href="#" class="nav-item active" id="nav-search">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <path d="m21 21-4.35-4.35"></path>
+            </svg>
+            Search
+          </a>
+          <a href="#" class="nav-item" id="nav-bookmarks">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path>
+            </svg>
+            Saved
+            <span class="badge" id="bookmark-count"></span>
+          </a>
+        </nav>
 
-        <div class="bookmarks-toggle">
-            <a href="#" id="show-bookmarks">View Saved Emails <span id="bookmark-count"></span></a>
+        <div class="sidebar-footer">
+          <p class="dataset-info">
+            Dataset from <a href="https://www.cs.cmu.edu/~enron/" target="_blank">CMU</a><br>
+            Powered by <a href="http://www.elasticsearch.org/" target="_blank">ElasticSearch</a>
+          </p>
         </div>
-    </div>
+      </aside>
 
-    <!-- Bookmarks Panel -->
-    <div id="bookmarks-panel" class="bookmarks-panel hidden">
-        <div class="bookmarks-header">
-            <h2>Saved Emails</h2>
-            <a href="#" id="close-bookmarks">Close</a>
+      <!-- Main Content Wrapper -->
+      <div class="main-wrapper">
+      <!-- Main Content -->
+      <main class="main-content">
+        <!-- Search Header -->
+        <header class="search-header">
+          <div class="search-wrapper">
+            <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <path d="m21 21-4.35-4.35"></path>
+            </svg>
+            <input type="text" id="search-input" placeholder="Search emails by name, subject, or content..." autocomplete="off">
+            <div id="highlights" class="autocomplete-suggestion hidden"></div>
+          </div>
+          <div id="terms" class="search-tags"></div>
+        </header>
+
+        <!-- Results Header -->
+        <div class="results-header">
+          <div class="results-count">
+            <span id="result-count">0</span> emails found
+          </div>
+          <div class="results-hint">
+            Press <kbd>Tab</kbd> to autocomplete, <kbd>Enter</kbd> to search
+          </div>
         </div>
-        <div id="bookmarks-list"></div>
-    </div>
 
-    <div id="search-results"></div>
+        <!-- Loading State -->
+        <div id="loading-state" class="loading-state hidden">
+          <div class="loading-skeleton"></div>
+          <div class="loading-skeleton"></div>
+          <div class="loading-skeleton"></div>
+        </div>
 
-    <div id="pagination" class="pagination hidden">
-        <button id="prev-page" class="page-btn">Previous</button>
-        <span id="page-info"></span>
-        <button id="next-page" class="page-btn">Next</button>
+        <!-- Empty State -->
+        <div id="empty-state" class="empty-state">
+          <div class="empty-icon">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+              <polyline points="22,6 12,13 2,6"></polyline>
+            </svg>
+          </div>
+          <h2>Search the Enron Archive</h2>
+          <p>Over 500,000 corporate emails from 2000-2002.<br>Try searching for names, subjects, or keywords.</p>
+        </div>
+
+        <!-- Email List -->
+        <div id="email-list" class="email-list"></div>
+
+        <!-- Pagination -->
+        <div id="pagination" class="pagination hidden">
+          <button id="prev-page" class="pagination-btn" disabled>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+            Previous
+          </button>
+          <span id="page-info" class="page-info"></span>
+          <button id="next-page" class="pagination-btn">
+            Next
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </button>
+        </div>
+      </main>
+
+      <!-- Email Detail Panel (for bookmarks view) -->
+      <aside id="bookmarks-panel" class="detail-panel hidden">
+        <div class="panel-header">
+          <h2>Saved Emails</h2>
+          <button id="close-bookmarks" class="close-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div id="bookmarks-list" class="panel-content"></div>
+      </aside>
+
+      <!-- Email Detail Panel (right side) -->
+      <aside id="email-detail-panel" class="email-detail-panel hidden">
+        <div class="panel-header">
+          <h2 id="panel-subject"></h2>
+          <div class="panel-header-actions">
+            <button id="fullscreen-email" class="icon-btn" title="Fullscreen">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <polyline points="9 21 3 21 3 15"></polyline>
+                <line x1="21" y1="3" x2="14" y2="10"></line>
+                <line x1="3" y1="21" x2="10" y2="14"></line>
+              </svg>
+            </button>
+            <button id="close-email-panel" class="icon-btn" title="Close">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="panel-scroll-content">
+          <div class="panel-meta">
+            <div class="meta-row">
+              <span class="meta-label">From</span>
+              <span id="panel-from" class="meta-value"></span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-label">To</span>
+              <span id="panel-to" class="meta-value"></span>
+            </div>
+            <div class="meta-row" id="panel-cc-row">
+              <span class="meta-label">CC</span>
+              <span id="panel-cc" class="meta-value"></span>
+            </div>
+            <div class="meta-row" id="panel-date-row">
+              <span class="meta-label">Date</span>
+              <span id="panel-date" class="meta-value"></span>
+            </div>
+          </div>
+          <div id="panel-body" class="panel-body"></div>
+        </div>
+        <div class="panel-actions">
+          <button id="panel-bookmark" class="action-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path>
+            </svg>
+            Save Email
+          </button>
+        </div>
+      </aside>
+      </div><!-- end main-wrapper -->
     </div>
   </body>
 </html>
