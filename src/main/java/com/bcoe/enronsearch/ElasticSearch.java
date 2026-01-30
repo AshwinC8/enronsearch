@@ -20,6 +20,7 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.index.query.FilterBuilders.*;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.search.sort.SortOrder;
 import org.elasticsearch.client.transport.*;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
 
@@ -164,7 +165,8 @@ public class ElasticSearch {
 		}
 	}
 
-	public SearchResponse search(String query, int from, int size) {
+	public SearchResponse search(String query, int from, int size, String sortOrder) {
+		SortOrder order = "desc".equalsIgnoreCase(sortOrder) ? SortOrder.DESC : SortOrder.ASC;
 		return client
 				.prepareSearch(indexName)
 				.setTypes(mappingName)
@@ -173,9 +175,25 @@ public class ElasticSearch {
 						QueryBuilders.queryString(query).field("_all")
 								.lenient(true).autoGeneratePhraseQueries(true)
 								.analyzeWildcard(true).phraseSlop(10)
-								.lowercaseExpandedTerms(false)).setFrom(from)
+								.lowercaseExpandedTerms(false))
+				.addSort("date", order)
+				.setFrom(from)
 				.setSize(size).addHighlightedField("to", 0, 0)
 				.addHighlightedField("from", 0, 0).execute().actionGet();
+	}
+
+	// Browse all emails sorted by date
+	public SearchResponse browse(int from, int size, String sortOrder) {
+		SortOrder order = "desc".equalsIgnoreCase(sortOrder) ? SortOrder.DESC : SortOrder.ASC;
+		return client
+				.prepareSearch(indexName)
+				.setTypes(mappingName)
+				.setSearchType(SearchType.DFS_QUERY_THEN_FETCH)
+				.setQuery(QueryBuilders.matchAllQuery())
+				.addSort("date", order)
+				.setFrom(from)
+				.setSize(size)
+				.execute().actionGet();
 	}
 
 	public void cleanup() {

@@ -13,7 +13,9 @@ function EnronSearch(opts) {
     pageSize: 30,
     totalResults: 0,
     bookmarks: [],
-    currentEmail: null
+    currentEmail: null,
+    sortOrder: 'asc', // 'asc' = oldest first, 'desc' = newest first
+    viewMode: 'text' // 'html' or 'text' - default to plain text
   }, opts);
 
   this.loadBookmarks();
@@ -23,6 +25,10 @@ function EnronSearch(opts) {
   this.setupBookmarks();
   this.setupModal();
   this.setupNavigation();
+  this.setupSortToggle();
+
+  // Load emails by default (sorted by date)
+  this.loadDefaultEmails();
 }
 
 // Extract initials from email address for avatar
@@ -108,7 +114,7 @@ EnronSearch.prototype.setupPagination = function() {
   $('#prev-page').on('click', function() {
     if (_this.currentPage > 0) {
       _this.currentPage--;
-      _this.searchAndScroll();
+      _this.paginateResults();
     }
   });
 
@@ -116,8 +122,109 @@ EnronSearch.prototype.setupPagination = function() {
     var maxPage = Math.ceil(_this.totalResults / _this.pageSize) - 1;
     if (_this.currentPage < maxPage) {
       _this.currentPage++;
-      _this.searchAndScroll();
+      _this.paginateResults();
     }
+  });
+};
+
+// Paginate results - use browse if no query, search otherwise
+EnronSearch.prototype.paginateResults = function() {
+  var terms = [].concat(this.searchTerms);
+  if (this.searchInput.val()) terms.push(this.searchInput.val() + '*');
+  var query = terms.join(' AND ');
+
+  if (!query) {
+    this.browseAndScroll();
+  } else {
+    this.searchAndScroll();
+  }
+};
+
+// Load default emails sorted by date
+EnronSearch.prototype.loadDefaultEmails = function() {
+  var _this = this;
+
+  // Only load if no search terms
+  if (this.searchTerms.length > 0 || this.searchInput.val()) {
+    return;
+  }
+
+  this.showLoading();
+
+  var data = {
+    from: this.currentPage * this.pageSize,
+    size: this.pageSize,
+    sort: this.sortOrder
+  };
+
+  $.ajax({
+    method: 'get',
+    url: '/browse',
+    data: data,
+    success: function(results) {
+      _this.totalResults = results.hits.total;
+      _this.displaySearchResults(results);
+      _this.updatePagination();
+      $('#empty-state').addClass('hidden');
+    },
+    error: function() {
+      _this.hideLoading();
+      $('#empty-state').removeClass('hidden');
+    }
+  });
+};
+
+// Load default emails with pagination
+EnronSearch.prototype.browseAndScroll = function() {
+  var _this = this;
+
+  this.showLoading();
+
+  var data = {
+    from: this.currentPage * this.pageSize,
+    size: this.pageSize,
+    sort: this.sortOrder
+  };
+
+  $.ajax({
+    method: 'get',
+    url: '/browse',
+    data: data,
+    success: function(results) {
+      _this.totalResults = results.hits.total;
+      _this.displaySearchResults(results);
+      _this.updatePagination();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  });
+};
+
+// Setup sort toggle
+EnronSearch.prototype.setupSortToggle = function() {
+  var _this = this;
+
+  $('#sort-toggle').on('click', function() {
+    var btn = $(this);
+    var currentSort = btn.data('sort');
+    var newSort = currentSort === 'asc' ? 'desc' : 'asc';
+
+    _this.sortOrder = newSort;
+    btn.data('sort', newSort);
+
+    // Update UI
+    if (newSort === 'asc') {
+      $('#sort-icon-asc').show();
+      $('#sort-icon-desc').hide();
+      $('#sort-label').text('Oldest first');
+    } else {
+      $('#sort-icon-asc').hide();
+      $('#sort-icon-desc').show();
+      $('#sort-label').text('Newest first');
+    }
+
+    // Reset to first page and reload
+    _this.currentPage = 0;
+    _this.paginateResults();
   });
 };
 
@@ -305,6 +412,21 @@ EnronSearch.prototype.setupModal = function() {
     }
   });
 
+  // View toggle (HTML / Plain Text)
+  $(document).on('click', '#view-html', function() {
+    _this.viewMode = 'html';
+    $('.view-btn').removeClass('active');
+    $(this).addClass('active');
+    _this.renderEmailBody();
+  });
+
+  $(document).on('click', '#view-text', function() {
+    _this.viewMode = 'text';
+    $('.view-btn').removeClass('active');
+    $(this).addClass('active');
+    _this.renderEmailBody();
+  });
+
   // Panel bookmark button
   $(document).on('click', '#panel-bookmark', function() {
     if (!_this.currentEmail) return;
@@ -333,6 +455,29 @@ EnronSearch.prototype.setupModal = function() {
   });
 };
 
+// Render email body based on view mode
+EnronSearch.prototype.renderEmailBody = function() {
+  if (!this.currentEmail) return;
+
+  var body = this.currentEmail.body || '';
+  var panelBody = $('#panel-body');
+
+  if (this.viewMode === 'html') {
+    // Render as HTML
+    panelBody.removeClass('text-view').addClass('html-view');
+    // Basic sanitization - remove script tags but allow other HTML
+    var sanitized = body
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/on\w+="[^"]*"/gi, '')
+      .replace(/on\w+='[^']*'/gi, '');
+    panelBody.html(sanitized);
+  } else {
+    // Render as plain text
+    panelBody.removeClass('html-view').addClass('text-view');
+    panelBody.text(body);
+  }
+};
+
 // Open email in side panel
 EnronSearch.prototype.openEmailModal = function(email) {
   this.currentEmail = email;
@@ -358,7 +503,17 @@ EnronSearch.prototype.openEmailModal = function(email) {
     $('#panel-date-row').hide();
   }
 
-  $('#panel-body').text(email.body || '');
+  // Render body based on current view mode
+  this.renderEmailBody();
+
+  // Update view toggle state
+  if (this.viewMode === 'html') {
+    $('#view-html').addClass('active');
+    $('#view-text').removeClass('active');
+  } else {
+    $('#view-text').addClass('active');
+    $('#view-html').removeClass('active');
+  }
 
   // Update bookmark button state
   var bookmarkBtn = $('#panel-bookmark');
@@ -400,7 +555,8 @@ EnronSearch.prototype.searchAndScroll = function() {
   var data = {
     q: query,
     from: this.currentPage * this.pageSize,
-    size: this.pageSize
+    size: this.pageSize,
+    sort: this.sortOrder
   };
 
   $.ajax({
@@ -491,11 +647,10 @@ EnronSearch.prototype.safeSearch = function(nonce) {
     if (_this.searchInput.val()) terms.push(_this.searchInput.val() + '*');
     var query = terms.join(' AND ');
 
+    // If no query, load default emails sorted by date
     if (!query) {
-      _this.displaySearchResults({ hits: { hits: [], total: 0 } });
       _this.highlights.html('');
-      _this.updatePagination();
-      $('#empty-state').removeClass('hidden');
+      _this.loadDefaultEmails();
       return;
     }
 
@@ -505,7 +660,8 @@ EnronSearch.prototype.safeSearch = function(nonce) {
     var data = {
       q: query,
       from: _this.currentPage * _this.pageSize,
-      size: _this.pageSize
+      size: _this.pageSize,
+      sort: _this.sortOrder
     };
 
     $.ajax({

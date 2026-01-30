@@ -18,7 +18,7 @@
           searchResults: $('#email-list'),
           highlights: $('#highlights'),
           terms: $('#terms')
-        }).search();
+        });
       });
     </script>
   </head>
@@ -75,10 +75,19 @@
         <!-- Results Header -->
         <div class="results-header">
           <div class="results-count">
-            <span id="result-count">0</span> emails found
+            <span id="result-count">0</span> emails
           </div>
-          <div class="results-hint">
-            Press <kbd>Tab</kbd> to autocomplete, <kbd>Enter</kbd> to search
+          <div class="sort-controls">
+            <label>Sort by date:</label>
+            <button id="sort-toggle" class="sort-btn" data-sort="asc">
+              <svg id="sort-icon-asc" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 5v14M5 12l7-7 7 7"/>
+              </svg>
+              <svg id="sort-icon-desc" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none">
+                <path d="M12 19V5M5 12l7 7 7-7"/>
+              </svg>
+              <span id="sort-label">Oldest first</span>
+            </button>
           </div>
         </div>
 
@@ -90,15 +99,15 @@
         </div>
 
         <!-- Empty State -->
-        <div id="empty-state" class="empty-state">
+        <div id="empty-state" class="empty-state hidden">
           <div class="empty-icon">
             <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
               <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
               <polyline points="22,6 12,13 2,6"></polyline>
             </svg>
           </div>
-          <h2>Search the Enron Archive</h2>
-          <p>Over 500,000 corporate emails from 2000-2002.<br>Try searching for names, subjects, or keywords.</p>
+          <h2>No Results Found</h2>
+          <p>Try a different search term or clear your filters.</p>
         </div>
 
         <!-- Email List -->
@@ -176,7 +185,13 @@
               <span id="panel-date" class="meta-value"></span>
             </div>
           </div>
-          <div id="panel-body" class="panel-body"></div>
+          <div class="panel-body-wrapper">
+            <div class="view-toggle">
+              <button id="view-html" class="view-btn active">HTML</button>
+              <button id="view-text" class="view-btn">Plain Text</button>
+            </div>
+            <div id="panel-body" class="panel-body"></div>
+          </div>
         </div>
         <div class="panel-actions">
           <button id="panel-bookmark" class="action-btn">

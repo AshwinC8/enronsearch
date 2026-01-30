@@ -55,9 +55,26 @@ public class WebApp
                 response.type("application/json");
                 String fromParam = request.queryParams("from");
                 String sizeParam = request.queryParams("size");
+                String sortParam = request.queryParams("sort");
                 int from = fromParam != null ? Integer.parseInt(fromParam) : 0;
                 int size = sizeParam != null ? Integer.parseInt(sizeParam) : 30;
-                return es.search( request.queryParams("q"), from, size ).toString();
+                String sort = sortParam != null ? sortParam : "asc";
+                return es.search( request.queryParams("q"), from, size, sort ).toString();
+            }
+        });
+
+        // Browse all emails sorted by date
+        get(new Route("/browse") {
+            @Override
+            public Object handle(Request request, Response response) {
+                response.type("application/json");
+                String fromParam = request.queryParams("from");
+                String sizeParam = request.queryParams("size");
+                String sortParam = request.queryParams("sort");
+                int from = fromParam != null ? Integer.parseInt(fromParam) : 0;
+                int size = sizeParam != null ? Integer.parseInt(sizeParam) : 30;
+                String sort = sortParam != null ? sortParam : "asc";
+                return es.browse(from, size, sort).toString();
             }
         });
 

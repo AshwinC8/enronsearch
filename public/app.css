@@ -343,9 +343,45 @@ a:hover {
   color: var(--text-secondary);
 }
 
-.results-count span {
+.results-count span#result-count {
   font-weight: 600;
   color: var(--text-primary);
+}
+
+.sort-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sort-controls label {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+.sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sort-btn:hover {
+  background: var(--bg-secondary);
+  border-color: var(--border-dark);
+}
+
+.sort-btn svg {
+  color: var(--accent);
 }
 
 .results-hint {
@@ -794,8 +830,10 @@ a:hover {
 
 .panel-scroll-content {
   flex: 1;
-  overflow-y: auto;
+  overflow-y: hidden;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .panel-meta {
@@ -824,13 +862,97 @@ a:hover {
   overflow-wrap: break-word;
 }
 
+.panel-body-wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.view-toggle {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  background: white;
+  flex-shrink: 0;
+}
+
+.view-btn {
+  padding: 0.375rem 0.75rem;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.view-btn:hover {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+.view-btn.active {
+  background: var(--accent-light);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
 .panel-body {
   padding: 1.5rem;
   font-size: 0.9375rem;
   line-height: 1.75;
   color: var(--text-primary);
-  white-space: pre-wrap;
   word-wrap: break-word;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.panel-body.text-view {
+  white-space: pre-wrap;
+}
+
+.panel-body.html-view {
+  white-space: normal;
+}
+
+/* HTML email content styles */
+.panel-body.html-view img {
+  max-width: 100%;
+  height: auto;
+}
+
+.panel-body.html-view table {
+  border-collapse: collapse;
+  max-width: 100%;
+}
+
+.panel-body.html-view td,
+.panel-body.html-view th {
+  padding: 0.5rem;
+  border: 1px solid var(--border-color);
+}
+
+.panel-body.html-view a {
+  color: var(--accent);
+}
+
+.panel-body.html-view blockquote {
+  margin: 1rem 0;
+  padding-left: 1rem;
+  border-left: 3px solid var(--border-color);
+  color: var(--text-secondary);
+}
+
+.panel-body.html-view pre {
+  background: var(--bg-secondary);
+  padding: 1rem;
+  border-radius: 4px;
+  overflow-x: auto;
 }
 
 /* Better reading width in fullscreen */
@@ -1004,13 +1126,22 @@ a:hover {
 
   .results-header {
     padding: 0.75rem 1rem;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.25rem;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
   }
 
   .results-hint {
     display: none;
+  }
+
+  .sort-controls label {
+    display: none;
+  }
+
+  .sort-btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.6875rem;
   }
 
   .email-row {
@@ -1107,6 +1238,15 @@ a:hover {
 
   .panel-actions {
     padding: 0.75rem 1rem;
+  }
+
+  .view-toggle {
+    padding: 0.5rem 1rem;
+  }
+
+  .view-btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.6875rem;
   }
 }
 
