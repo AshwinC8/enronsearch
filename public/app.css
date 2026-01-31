@@ -955,9 +955,10 @@ a:hover {
   overflow-x: auto;
 }
 
-/* Better reading width in fullscreen */
+/* Full width in fullscreen */
 .email-detail-panel.fullscreen .panel-body {
-  max-width: 800px;
+  max-width: 100%;
+  width: 100%;
 }
 
 .panel-actions {
