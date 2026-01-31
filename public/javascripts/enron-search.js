@@ -724,7 +724,6 @@ EnronSearch.prototype.displaySearchResults = function(results) {
     var isBookmarked = _this.isBookmarked(id);
     var initials = _this.getInitials(message.from);
     var sender = _this.formatSender(message.from);
-    var preview = message.body ? message.body.replace(/[\r\n]+/g, ' ').substring(0, 100) : '';
     var dateStr = _this.formatDate(message.date);
 
     var element = $('\
@@ -733,10 +732,9 @@ EnronSearch.prototype.displaySearchResults = function(results) {
         <div class="email-sender"></div>\
         <div class="email-content">\
           <div class="email-subject"></div>\
-          <div class="email-preview"></div>\
+          <span class="email-date"></span>\
         </div>\
         <div class="email-meta">\
-          <span class="email-date"></span>\
           <button class="email-bookmark" title="Save email">\
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\
               <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path>\
@@ -748,7 +746,6 @@ EnronSearch.prototype.displaySearchResults = function(results) {
     element.find('.email-avatar').text(initials);
     element.find('.email-sender').text(sender);
     element.find('.email-subject').text(message.subject || '(no subject)').attr('data-sender', sender);
-    element.find('.email-preview').text(preview);
     element.find('.email-date').text(dateStr);
 
     // Setup bookmark button
