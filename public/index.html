@@ -147,10 +147,22 @@
 
       <!-- Email Detail Panel (right side) -->
       <aside id="email-detail-panel" class="email-detail-panel hidden">
-        <div class="panel-header">
-          <h2 id="panel-subject"></h2>
-          <div class="panel-header-actions">
-            <button id="fullscreen-email" class="icon-btn" title="Fullscreen">
+        <!-- Toolbar -->
+        <div class="email-toolbar">
+          <div class="toolbar-left">
+            <button id="close-email-panel" class="toolbar-btn" title="Back to inbox">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 12H5M12 19l-7-7 7-7"/>
+              </svg>
+            </button>
+          </div>
+          <div class="toolbar-right">
+            <button id="panel-bookmark" class="toolbar-btn" title="Save email">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path>
+              </svg>
+            </button>
+            <button id="fullscreen-email" class="toolbar-btn" title="Fullscreen">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="15 3 21 3 21 9"></polyline>
                 <polyline points="9 21 3 21 3 15"></polyline>
@@ -158,48 +170,69 @@
                 <line x1="3" y1="21" x2="10" y2="14"></line>
               </svg>
             </button>
-            <button id="close-email-panel" class="icon-btn" title="Close">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </button>
           </div>
         </div>
-        <div class="panel-scroll-content">
-          <div class="panel-meta">
-            <div class="meta-row">
-              <span class="meta-label">From</span>
-              <span id="panel-from" class="meta-value"></span>
+
+        <!-- Email Content -->
+        <div class="email-view-content">
+          <!-- Subject -->
+          <div class="email-subject-bar">
+            <h1 id="panel-subject" class="email-subject-title"></h1>
+          </div>
+
+          <!-- Sender Header -->
+          <div class="email-sender-header">
+            <div class="sender-avatar" id="panel-avatar"></div>
+            <div class="sender-info">
+              <div class="sender-line">
+                <span class="sender-name" id="panel-sender-name"></span>
+                <span class="sender-email" id="panel-from"></span>
+              </div>
+              <div class="recipient-line">
+                <span class="recipient-label">to</span>
+                <span class="recipient-value" id="panel-to"></span>
+                <button class="expand-details-btn" id="expand-details" title="Show details">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M6 9l6 6 6-6"/>
+                  </svg>
+                </button>
+              </div>
             </div>
-            <div class="meta-row">
-              <span class="meta-label">To</span>
-              <span id="panel-to" class="meta-value"></span>
+            <div class="email-timestamp" id="panel-date"></div>
+          </div>
+
+          <!-- Expanded Details (hidden by default) -->
+          <div class="email-details-expanded hidden" id="email-details-expanded">
+            <div class="detail-row">
+              <span class="detail-label">from:</span>
+              <span class="detail-value" id="panel-from-full"></span>
             </div>
-            <div class="meta-row" id="panel-cc-row">
-              <span class="meta-label">CC</span>
-              <span id="panel-cc" class="meta-value"></span>
+            <div class="detail-row">
+              <span class="detail-label">to:</span>
+              <span class="detail-value" id="panel-to-full"></span>
             </div>
-            <div class="meta-row" id="panel-date-row">
-              <span class="meta-label">Date</span>
-              <span id="panel-date" class="meta-value"></span>
+            <div class="detail-row" id="panel-cc-row">
+              <span class="detail-label">cc:</span>
+              <span class="detail-value" id="panel-cc"></span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">date:</span>
+              <span class="detail-value" id="panel-date-full"></span>
             </div>
           </div>
-          <div class="panel-body-wrapper">
+
+          <!-- View Toggle -->
+          <div class="view-toggle-bar">
             <div class="view-toggle">
               <button id="view-text" class="view-btn active">Plain Text</button>
               <button id="view-html" class="view-btn">HTML</button>
             </div>
-            <div id="panel-body" class="panel-body"></div>
           </div>
-        </div>
-        <div class="panel-actions">
-          <button id="panel-bookmark" class="action-btn">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path>
-            </svg>
-            Save Email
-          </button>
+
+          <!-- Email Body -->
+          <div class="email-body-container">
+            <div id="panel-body" class="email-body"></div>
+          </div>
         </div>
       </aside>
       </div><!-- end main-wrapper -->

@@ -403,6 +403,21 @@ EnronSearch.prototype.setupModal = function() {
     return false;
   });
 
+  // Expand/collapse email details
+  $(document).on('click', '#expand-details', function() {
+    var btn = $(this);
+    var details = $('#email-details-expanded');
+
+    if (details.hasClass('hidden')) {
+      details.removeClass('hidden');
+      btn.addClass('expanded');
+    } else {
+      details.addClass('hidden');
+      btn.removeClass('expanded');
+    }
+    return false;
+  });
+
   // Escape key to close
   $(document).on('keydown', function(e) {
     if (e.keyCode === 27) {
@@ -427,7 +442,7 @@ EnronSearch.prototype.setupModal = function() {
     _this.renderEmailBody();
   });
 
-  // Panel bookmark button
+  // Panel bookmark button (toolbar style)
   $(document).on('click', '#panel-bookmark', function() {
     if (!_this.currentEmail) return;
 
@@ -436,19 +451,13 @@ EnronSearch.prototype.setupModal = function() {
 
     if (_this.isBookmarked(id)) {
       _this.removeBookmark(id);
-      btn.removeClass('bookmarked').html('\
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\
-          <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path>\
-        </svg>\
-        Save Email');
+      btn.removeClass('bookmarked');
+      btn.find('svg').attr('fill', 'none');
       $('.email-bookmark[data-id="' + id + '"]').removeClass('bookmarked').find('svg').attr('fill', 'none');
     } else {
       _this.addBookmark(_this.currentEmail);
-      btn.addClass('bookmarked').html('\
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2">\
-          <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path>\
-        </svg>\
-        Saved');
+      btn.addClass('bookmarked');
+      btn.find('svg').attr('fill', 'currentColor');
       $('.email-bookmark[data-id="' + id + '"]').addClass('bookmarked');
     }
     return false;
@@ -460,21 +469,40 @@ EnronSearch.prototype.renderEmailBody = function() {
   if (!this.currentEmail) return;
 
   var body = this.currentEmail.body || '';
-  var panelBody = $('#panel-body');
+  var emailBody = $('#panel-body');
 
   if (this.viewMode === 'html') {
     // Render as HTML
-    panelBody.removeClass('text-view').addClass('html-view');
+    emailBody.removeClass('text-view').addClass('html-view');
     // Basic sanitization - remove script tags but allow other HTML
     var sanitized = body
       .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
       .replace(/on\w+="[^"]*"/gi, '')
       .replace(/on\w+='[^']*'/gi, '');
-    panelBody.html(sanitized);
+    emailBody.html(sanitized);
   } else {
     // Render as plain text
-    panelBody.removeClass('html-view').addClass('text-view');
-    panelBody.text(body);
+    emailBody.removeClass('html-view').addClass('text-view');
+    emailBody.text(body);
+  }
+};
+
+// Format full date for display
+EnronSearch.prototype.formatFullDate = function(dateStr) {
+  if (!dateStr) return '';
+  try {
+    var date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
+    return date.toLocaleDateString('en-US', {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    });
+  } catch (e) {
+    return dateStr;
   }
 };
 
@@ -483,9 +511,24 @@ EnronSearch.prototype.openEmailModal = function(email) {
   this.currentEmail = email;
 
   var panel = $('#email-detail-panel');
+  var senderName = this.formatSender(email.from);
+  var initials = this.getInitials(email.from);
+
+  // Subject
   $('#panel-subject').text(email.subject || '(no subject)');
-  $('#panel-from').text(email.from || 'Unknown');
-  $('#panel-to').text(email.to || 'Unknown');
+
+  // Sender header - Gmail style
+  $('#panel-avatar').text(initials);
+  $('#panel-sender-name').text(senderName);
+  $('#panel-from').text('<' + (email.from || 'unknown') + '>');
+
+  // Recipient line (shortened)
+  var toShort = this.formatSender(email.to);
+  $('#panel-to').text(toShort);
+
+  // Full details (expandable)
+  $('#panel-from-full').text(email.from || 'Unknown');
+  $('#panel-to-full').text(email.to || 'Unknown');
 
   // CC field
   if (email.cc) {
@@ -495,13 +538,18 @@ EnronSearch.prototype.openEmailModal = function(email) {
     $('#panel-cc-row').hide();
   }
 
-  // Date field
+  // Date field - short version in header, full in expanded
   if (email.date) {
-    $('#panel-date').text(email.date);
-    $('#panel-date-row').show();
+    $('#panel-date').text(this.formatFullDate(email.date));
+    $('#panel-date-full').text(email.date);
   } else {
-    $('#panel-date-row').hide();
+    $('#panel-date').text('');
+    $('#panel-date-full').text('Unknown');
   }
+
+  // Reset expanded details state
+  $('#email-details-expanded').addClass('hidden');
+  $('#expand-details').removeClass('expanded');
 
   // Render body based on current view mode
   this.renderEmailBody();
@@ -518,17 +566,9 @@ EnronSearch.prototype.openEmailModal = function(email) {
   // Update bookmark button state
   var bookmarkBtn = $('#panel-bookmark');
   if (this.isBookmarked(email.id)) {
-    bookmarkBtn.addClass('bookmarked').html('\
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2">\
-        <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path>\
-      </svg>\
-      Saved');
+    bookmarkBtn.addClass('bookmarked');
   } else {
-    bookmarkBtn.removeClass('bookmarked').html('\
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\
-        <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path>\
-      </svg>\
-      Save Email');
+    bookmarkBtn.removeClass('bookmarked');
   }
 
   // Close bookmarks panel if open
