@@ -57,11 +57,12 @@ public class WebApp
                 String sizeParam = request.queryParams("size");
                 String sortParam = request.queryParams("sort");
                 String excludeSpamParam = request.queryParams("excludeSpam");
+                String tags = request.queryParams("tags");
                 int from = fromParam != null ? Integer.parseInt(fromParam) : 0;
                 int size = sizeParam != null ? Integer.parseInt(sizeParam) : 30;
                 String sort = sortParam != null ? sortParam : "asc";
                 boolean excludeSpam = !"false".equalsIgnoreCase(excludeSpamParam);
-                return es.search( request.queryParams("q"), from, size, sort, excludeSpam ).toString();
+                return es.search( request.queryParams("q"), from, size, sort, excludeSpam, tags ).toString();
             }
         });
 
@@ -74,11 +75,28 @@ public class WebApp
                 String sizeParam = request.queryParams("size");
                 String sortParam = request.queryParams("sort");
                 String excludeSpamParam = request.queryParams("excludeSpam");
+                String tags = request.queryParams("tags");
                 int from = fromParam != null ? Integer.parseInt(fromParam) : 0;
                 int size = sizeParam != null ? Integer.parseInt(sizeParam) : 30;
                 String sort = sortParam != null ? sortParam : "asc";
                 boolean excludeSpam = !"false".equalsIgnoreCase(excludeSpamParam);
-                return es.browse(from, size, sort, excludeSpam).toString();
+                return es.browse(from, size, sort, excludeSpam, tags).toString();
+            }
+        });
+
+        // Get all unique tags
+        get(new Route("/tags") {
+            @Override
+            public Object handle(Request request, Response response) {
+                response.type("application/json");
+                java.util.List<String> tags = es.getAllTags();
+                StringBuilder sb = new StringBuilder("[");
+                for (int i = 0; i < tags.size(); i++) {
+                    if (i > 0) sb.append(",");
+                    sb.append("\"").append(tags.get(i)).append("\"");
+                }
+                sb.append("]");
+                return sb.toString();
             }
         });
 

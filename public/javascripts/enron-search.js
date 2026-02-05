@@ -12,20 +12,19 @@ function EnronSearch(opts) {
     currentPage: 0,
     pageSize: 30,
     totalResults: 0,
-    bookmarks: [],
     currentEmail: null,
     sortOrder: 'asc', // 'asc' = oldest first, 'desc' = newest first
     viewMode: 'text', // 'html' or 'text' - default to plain text
     allTags: [], // list of unique tags from results
-    activeTagFilter: null // currently selected tag filter
+    activeTagFilters: [], // currently selected tag filters (multi-select)
+    currentView: 'search' // 'search' or 'spam'
   }, opts);
 
-  this.loadBookmarks();
   this.loadSpamCount();
+  this.loadAllTags();
   this.typeAheadSearch();
   this.clearSearch();
   this.setupPagination();
-  this.setupBookmarks();
   this.setupModal();
   this.setupNavigation();
   this.setupSortToggle();
@@ -34,6 +33,18 @@ function EnronSearch(opts) {
   // Load emails by default (sorted by date)
   this.loadDefaultEmails();
 }
+
+// Load all tags from backend
+EnronSearch.prototype.loadAllTags = function() {
+  var _this = this;
+  $.ajax({
+    type: 'GET',
+    url: '/tags',
+    success: function(tags) {
+      _this.allTags = tags || [];
+    }
+  });
+};
 
 // Extract initials from email address for avatar
 EnronSearch.prototype.getInitials = function(email) {
@@ -161,6 +172,12 @@ EnronSearch.prototype.loadDefaultEmails = function() {
     sort: this.sortOrder
   };
 
+  // Add tag filter if active
+  if (this.activeTagFilters.length > 0) {
+    data.tags = this.activeTagFilters.join(',');
+  }
+  data.excludeSpam = true;
+
   $.ajax({
     method: 'get',
     url: '/browse',
@@ -189,6 +206,12 @@ EnronSearch.prototype.browseAndScroll = function() {
     size: this.pageSize,
     sort: this.sortOrder
   };
+
+  // Add tag filter if active
+  if (this.activeTagFilters.length > 0) {
+    data.tags = this.activeTagFilters.join(',');
+  }
+  data.excludeSpam = true;
 
   $.ajax({
     method: 'get',
@@ -239,146 +262,28 @@ EnronSearch.prototype.setupNavigation = function() {
   $('#nav-search').on('click', function() {
     $('.nav-item').removeClass('active');
     $(this).addClass('active');
-    $('#bookmarks-panel').addClass('hidden');
-    $('#spam-panel').addClass('hidden');
+    _this.currentView = 'search';
+    _this.currentPage = 0;
+    $('#email-detail-panel').addClass('hidden');
+    // Show search UI elements
+    $('.search-header').show();
+    $('.results-header .sort-controls').show();
+    _this.loadDefaultEmails();
     return false;
   });
 
-  $('#nav-bookmarks').on('click', function() {
+  $('#nav-spam').on('click', function() {
     $('.nav-item').removeClass('active');
     $(this).addClass('active');
-    $('#spam-panel').addClass('hidden');
-    _this.showBookmarksPanel();
+    _this.currentView = 'spam';
+    _this.currentPage = 0;
+    $('#email-detail-panel').addClass('hidden');
+    // Hide search UI elements for spam view
+    $('.search-header').hide();
+    $('.results-header .sort-controls').hide();
+    _this.displaySpamInList();
     return false;
   });
-};
-
-// Load bookmarks from localStorage
-EnronSearch.prototype.loadBookmarks = function() {
-  var stored = localStorage.getItem('enron-bookmarks');
-  this.bookmarks = stored ? JSON.parse(stored) : [];
-};
-
-// Save bookmarks to localStorage
-EnronSearch.prototype.saveBookmarks = function() {
-  localStorage.setItem('enron-bookmarks', JSON.stringify(this.bookmarks));
-};
-
-// Check if an email is bookmarked
-EnronSearch.prototype.isBookmarked = function(id) {
-  return this.bookmarks.some(function(b) { return b.id === id; });
-};
-
-// Add a bookmark
-EnronSearch.prototype.addBookmark = function(email) {
-  if (!this.isBookmarked(email.id)) {
-    this.bookmarks.push(email);
-    this.saveBookmarks();
-    this.updateBookmarkCount();
-  }
-};
-
-// Remove a bookmark
-EnronSearch.prototype.removeBookmark = function(id) {
-  this.bookmarks = this.bookmarks.filter(function(b) { return b.id !== id; });
-  this.saveBookmarks();
-  this.updateBookmarkCount();
-};
-
-// Update bookmark count display
-EnronSearch.prototype.updateBookmarkCount = function() {
-  var count = this.bookmarks.length;
-  $('#bookmark-count').text(count > 0 ? count : '');
-};
-
-// Setup bookmark event handlers
-EnronSearch.prototype.setupBookmarks = function() {
-  var _this = this;
-
-  // Toggle bookmark on row button click
-  $(document).on('click', '.email-bookmark', function(e) {
-    e.stopPropagation();
-    var btn = $(this);
-    var id = btn.data('id');
-    var email = btn.data('email');
-
-    if (_this.isBookmarked(id)) {
-      _this.removeBookmark(id);
-      btn.removeClass('bookmarked');
-      btn.find('svg').attr('fill', 'none');
-    } else {
-      _this.addBookmark(email);
-      btn.addClass('bookmarked');
-    }
-    return false;
-  });
-
-  // Close bookmarks panel
-  $(document).on('click', '#close-bookmarks', function() {
-    $('#bookmarks-panel').addClass('hidden');
-    $('#nav-search').addClass('active');
-    $('#nav-bookmarks').removeClass('active');
-    return false;
-  });
-
-  // Remove from bookmarks panel
-  $(document).on('click', '.remove-bookmark', function(e) {
-    e.stopPropagation();
-    var id = $(this).data('id');
-    _this.removeBookmark(id);
-    $(this).closest('.bookmark-item').remove();
-    if (_this.bookmarks.length === 0) {
-      $('#bookmarks-list').html('<p class="no-bookmarks">No saved emails yet.</p>');
-    }
-    // Update button state in search results
-    $('.email-bookmark[data-id="' + id + '"]').removeClass('bookmarked').find('svg').attr('fill', 'none');
-    return false;
-  });
-
-  this.updateBookmarkCount();
-};
-
-// Show the bookmarks panel
-EnronSearch.prototype.showBookmarksPanel = function() {
-  var _this = this;
-  var panel = $('#bookmarks-panel');
-  var list = $('#bookmarks-list');
-
-  // Close email detail panel if open
-  $('#email-detail-panel').addClass('hidden');
-
-  list.empty();
-
-  if (this.bookmarks.length === 0) {
-    list.html('<p class="no-bookmarks">No saved emails yet.</p>');
-  } else {
-    this.bookmarks.forEach(function(email) {
-      var item = $('\
-        <div class="bookmark-item">\
-          <div class="bookmark-header">\
-            <span class="subject"></span>\
-            <a href="#" class="remove-bookmark" data-id="">Remove</a>\
-          </div>\
-          <div class="meta"></div>\
-          <p class="body"></p>\
-        </div>');
-
-      item.find('.subject').text(email.subject || '(no subject)');
-      item.find('.meta').text('From: ' + _this.formatSender(email.from) + ' → ' + _this.formatSender(email.to));
-      item.find('.body').text(email.body ? email.body.replace(/[\r\n]+/g, ' ').substring(0, 200) + '...' : '');
-      item.find('.remove-bookmark').data('id', email.id);
-
-      // Click to open email
-      item.data('email', email);
-      item.on('click', function() {
-        _this.openEmailModal($(this).data('email'));
-      });
-
-      list.append(item);
-    });
-  }
-
-  panel.removeClass('hidden');
 };
 
 // Setup email detail panel handlers
@@ -428,7 +333,6 @@ EnronSearch.prototype.setupModal = function() {
   $(document).on('keydown', function(e) {
     if (e.keyCode === 27) {
       $('#email-detail-panel').addClass('hidden').removeClass('fullscreen');
-      $('#bookmarks-panel').addClass('hidden');
       _this.currentEmail = null;
     }
   });
@@ -448,26 +352,6 @@ EnronSearch.prototype.setupModal = function() {
     _this.renderEmailBody();
   });
 
-  // Panel bookmark button (toolbar style)
-  $(document).on('click', '#panel-bookmark', function() {
-    if (!_this.currentEmail) return;
-
-    var btn = $(this);
-    var id = _this.currentEmail.id;
-
-    if (_this.isBookmarked(id)) {
-      _this.removeBookmark(id);
-      btn.removeClass('bookmarked');
-      btn.find('svg').attr('fill', 'none');
-      $('.email-bookmark[data-id="' + id + '"]').removeClass('bookmarked').find('svg').attr('fill', 'none');
-    } else {
-      _this.addBookmark(_this.currentEmail);
-      btn.addClass('bookmarked');
-      btn.find('svg').attr('fill', 'currentColor');
-      $('.email-bookmark[data-id="' + id + '"]').addClass('bookmarked');
-    }
-    return false;
-  });
 };
 
 // Render email body based on view mode
@@ -569,14 +453,6 @@ EnronSearch.prototype.openEmailModal = function(email) {
     $('#view-html').removeClass('active');
   }
 
-  // Update bookmark button state
-  var bookmarkBtn = $('#panel-bookmark');
-  if (this.isBookmarked(email.id)) {
-    bookmarkBtn.addClass('bookmarked');
-  } else {
-    bookmarkBtn.removeClass('bookmarked');
-  }
-
   // Update spam button state
   var spamBtn = $('#panel-spam');
   if (email.spam) {
@@ -589,10 +465,6 @@ EnronSearch.prototype.openEmailModal = function(email) {
 
   // Update tags bar
   this.updateEmailTagsBar(email.tags || []);
-
-  // Close other panels
-  $('#bookmarks-panel').addClass('hidden');
-  $('#spam-panel').addClass('hidden');
 
   panel.removeClass('hidden');
 };
@@ -618,6 +490,12 @@ EnronSearch.prototype.searchAndScroll = function() {
     size: this.pageSize,
     sort: this.sortOrder
   };
+
+  // Add tag filter if active
+  if (this.activeTagFilters.length > 0) {
+    data.tags = this.activeTagFilters.join(',');
+  }
+  data.excludeSpam = true;
 
   $.ajax({
     method: 'get',
@@ -724,6 +602,12 @@ EnronSearch.prototype.safeSearch = function(nonce) {
       sort: _this.sortOrder
     };
 
+    // Add tag filter if active
+    if (_this.activeTagFilters.length > 0) {
+      data.tags = _this.activeTagFilters.join(',');
+    }
+    data.excludeSpam = true;
+
     $.ajax({
       method: 'get',
       url: '/search',
@@ -768,43 +652,25 @@ EnronSearch.prototype.displaySearchResults = function(results) {
   this.hideLoading();
   this.searchResults.empty();
 
-  // Collect all unique tags from results
-  var tagsSet = {};
-
-  // Filter by tag if active
-  var filteredHits = results.hits.hits;
-  if (this.activeTagFilter) {
-    filteredHits = filteredHits.filter(function(hit) {
-      var tags = hit._source.tags || [];
-      return tags.indexOf(_this.activeTagFilter) !== -1;
-    });
-  }
-
   // Update result count
-  if (this.activeTagFilter) {
-    $('#result-count').text(filteredHits.length + ' of ' + results.hits.total.toLocaleString());
-  } else {
-    $('#result-count').text(results.hits.total.toLocaleString());
-  }
+  $('#result-count').text(results.hits.total.toLocaleString());
 
-  if (filteredHits.length === 0) {
+  if (results.hits.hits.length === 0) {
     $('#empty-state').removeClass('hidden');
+    $('#empty-state h2').text('No Results Found');
+    $('#empty-state p').text('Try a different search term or clear your filters.');
     return;
   }
 
   $('#empty-state').addClass('hidden');
 
-  filteredHits.forEach(function(hit) {
+  results.hits.hits.forEach(function(hit) {
     var message = hit._source;
     var id = hit._id;
-    var isBookmarked = _this.isBookmarked(id);
     var initials = _this.getInitials(message.from);
     var sender = _this.formatSender(message.from);
     var dateStr = _this.formatDate(message.date);
     var emailTags = message.tags || [];
-
-    // Collect tags
-    emailTags.forEach(function(t) { tagsSet[t] = true; });
 
     var element = $('\
       <div class="email-row">\
@@ -814,30 +680,35 @@ EnronSearch.prototype.displaySearchResults = function(results) {
           <div class="email-subject"></div>\
           <span class="email-date"></span>\
         </div>\
-        <div class="email-meta">\
-          <button class="email-bookmark" title="Save email">\
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\
-              <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path>\
-            </svg>\
+        <div class="email-actions">\
+          <button class="email-action-btn email-action-spam" title="Mark as spam">\
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>\
+            <span>Spam</span>\
           </button>\
         </div>\
       </div>');
 
+    element.attr('data-id', id);
     element.find('.email-avatar').text(initials);
     element.find('.email-sender').text(sender);
     element.find('.email-subject').text(message.subject || '(no subject)').attr('data-sender', sender);
     element.find('.email-date').text(dateStr);
 
-    // Show tags inline if present
+    // Show tags inline with remove buttons
     if (emailTags.length > 0) {
-      var tagsHtml = emailTags.map(function(t) {
-        return '<span class="email-tag-inline">' + t + '</span>';
-      }).join('');
-      element.find('.email-content').append('<div class="email-row-tags">' + tagsHtml + '</div>');
+      var colors = ['#c45d35', '#4a8f5d', '#5b7bb3', '#8b5bb3', '#d4a847', '#6b6b6b'];
+      var tagsContainer = $('<div class="email-row-tags"></div>');
+      emailTags.forEach(function(t) {
+        var tagIndex = _this.allTags.indexOf(t);
+        var color = colors[(tagIndex >= 0 ? tagIndex : 0) % colors.length];
+        var tagEl = $('<span class="email-tag-inline" style="--tag-color:' + color + '"></span>');
+        tagEl.append($('<span class="tag-inline-name"></span>').text(t));
+        tagEl.append($('<button class="email-row-remove-tag" title="Remove tag">&times;</button>').data('tag', t));
+        tagsContainer.append(tagEl);
+      });
+      element.find('.email-content').append(tagsContainer);
     }
 
-    // Setup bookmark button
-    var bookmarkBtn = element.find('.email-bookmark');
     var emailData = {
       id: id,
       subject: message.subject,
@@ -849,27 +720,17 @@ EnronSearch.prototype.displaySearchResults = function(results) {
       tags: emailTags,
       spam: message.spam || false
     };
-    bookmarkBtn.data('id', id);
-    bookmarkBtn.data('email', emailData);
-
-    if (isBookmarked) {
-      bookmarkBtn.addClass('bookmarked');
-      bookmarkBtn.find('svg').attr('fill', 'currentColor');
-    }
 
     // Click row to open modal
     element.data('email', emailData);
     element.on('click', function(e) {
-      if (!$(e.target).closest('.email-bookmark').length) {
+      if (!$(e.target).closest('.email-actions, .email-row-remove-tag').length) {
         _this.openEmailModal($(this).data('email'));
       }
     });
 
     _this.searchResults.append(element);
   });
-
-  // Update all tags list
-  this.allTags = Object.keys(tagsSet).sort();
 };
 
 // Suggest emails based on partial matches
@@ -926,7 +787,7 @@ EnronSearch.prototype.loadSpamCount = function() {
 // Add tag via API
 EnronSearch.prototype.addTag = function(emailId, tag, callback) {
   $.ajax({
-    method: 'post',
+    type: 'POST',
     url: '/tag',
     data: { emailId: emailId, tag: tag },
     success: function() {
@@ -938,7 +799,7 @@ EnronSearch.prototype.addTag = function(emailId, tag, callback) {
 // Remove tag via API
 EnronSearch.prototype.removeTag = function(emailId, tag, callback) {
   $.ajax({
-    method: 'post',
+    type: 'POST',
     url: '/untag',
     data: { emailId: emailId, tag: tag },
     success: function() {
@@ -951,7 +812,7 @@ EnronSearch.prototype.removeTag = function(emailId, tag, callback) {
 EnronSearch.prototype.setSpam = function(emailId, isSpam, callback) {
   var _this = this;
   $.ajax({
-    method: 'post',
+    type: 'POST',
     url: '/spam',
     data: { emailId: emailId, isSpam: isSpam },
     success: function() {
@@ -965,19 +826,23 @@ EnronSearch.prototype.setSpam = function(emailId, isSpam, callback) {
 EnronSearch.prototype.setupTagsAndSpam = function() {
   var _this = this;
 
-  // Spam navigation
-  $('#nav-spam').on('click', function() {
-    $('.nav-item').removeClass('active');
-    $(this).addClass('active');
-    _this.showSpamPanel();
+  // Unspam from spam list view
+  $(document).on('click', '.email-action-unspam', function(e) {
+    e.stopPropagation();
+    var id = $(this).data('id');
+    var row = $(this).closest('.email-row');
+    _this.setSpam(id, false, function() {
+      row.fadeOut(300, function() { $(this).remove(); });
+      _this.loadSpamCount();
+    });
     return false;
   });
 
-  // Close spam panel
-  $(document).on('click', '#close-spam', function() {
-    $('#spam-panel').addClass('hidden');
-    $('#nav-search').addClass('active');
-    $('#nav-spam').removeClass('active');
+  // Color picker in tag dropdown
+  $(document).on('click', '.tag-color', function(e) {
+    e.stopPropagation();
+    $('.tag-color').removeClass('active');
+    $(this).addClass('active');
     return false;
   });
 
@@ -1013,6 +878,8 @@ EnronSearch.prototype.setupTagsAndSpam = function() {
           _this.currentEmail.tags.push(tag);
         }
         input.val('');
+        // Reload all tags from backend
+        _this.loadAllTags();
         _this.renderTagDropdown();
         _this.updateEmailTagsBar(_this.currentEmail.tags);
       });
@@ -1076,25 +943,21 @@ EnronSearch.prototype.setupTagsAndSpam = function() {
       if (isSpam) {
         btn.addClass('is-spam');
         btn.attr('title', 'Remove from spam');
+        // Remove from search list and close panel
+        if (_this.currentView === 'search') {
+          $('.email-row[data-id="' + id + '"]').fadeOut(300, function() { $(this).remove(); });
+          $('#email-detail-panel').addClass('hidden').removeClass('fullscreen');
+          _this.currentEmail = null;
+        }
       } else {
         btn.removeClass('is-spam');
         btn.attr('title', 'Mark as spam');
-      }
-    });
-    return false;
-  });
-
-  // Unspam from spam panel
-  $(document).on('click', '.unspam-btn', function(e) {
-    e.stopPropagation();
-    var id = $(this).data('id');
-    var item = $(this).closest('.spam-item');
-    _this.setSpam(id, false, function() {
-      item.remove();
-      _this.loadSpamCount();
-      // Check if panel is empty
-      if ($('#spam-list .spam-item').length === 0) {
-        $('#spam-list').html('<p class="no-spam">No spam emails.</p>');
+        // Remove from spam list and close panel
+        if (_this.currentView === 'spam') {
+          $('.email-row[data-id="' + id + '"]').fadeOut(300, function() { $(this).remove(); });
+          $('#email-detail-panel').addClass('hidden').removeClass('fullscreen');
+          _this.currentEmail = null;
+        }
       }
     });
     return false;
@@ -1120,26 +983,74 @@ EnronSearch.prototype.setupTagsAndSpam = function() {
     }
   });
 
-  // Tag filter selection
-  $(document).on('click', '.tag-filter-option', function() {
-    var tag = $(this).data('tag');
-    _this.activeTagFilter = tag || null;
-
-    // Update button text
-    var btn = $('#tag-filter-btn');
-    if (tag) {
-      btn.addClass('active');
-      $('#tag-filter-label').text(tag);
-    } else {
-      btn.removeClass('active');
-      $('#tag-filter-label').text('All');
-    }
-
+  // Tag filter: clear all
+  $(document).on('click', '.tag-filter-all', function() {
+    _this.activeTagFilters = [];
+    $('#tag-filter-btn').removeClass('active');
+    $('#tag-filter-label').text('All');
     $('#tag-filter-dropdown').addClass('hidden');
-
-    // Refresh results
     _this.currentPage = 0;
     _this.paginateResults();
+    return false;
+  });
+
+  // Tag filter: toggle individual tags
+  $(document).on('change', '.tag-filter-check input', function(e) {
+    e.stopPropagation();
+    var tag = $(this).data('tag');
+    if ($(this).is(':checked')) {
+      if (_this.activeTagFilters.indexOf(tag) === -1) {
+        _this.activeTagFilters.push(tag);
+      }
+    } else {
+      _this.activeTagFilters = _this.activeTagFilters.filter(function(t) { return t !== tag; });
+    }
+    // Update button text
+    if (_this.activeTagFilters.length === 0) {
+      $('#tag-filter-btn').removeClass('active');
+      $('#tag-filter-label').text('All');
+    } else if (_this.activeTagFilters.length === 1) {
+      $('#tag-filter-btn').addClass('active');
+      $('#tag-filter-label').text(_this.activeTagFilters[0]);
+    } else {
+      $('#tag-filter-btn').addClass('active');
+      $('#tag-filter-label').text(_this.activeTagFilters.length + ' tags');
+    }
+    _this.currentPage = 0;
+    _this.paginateResults();
+  });
+
+  // Mark as spam from email row
+  $(document).on('click', '.email-action-spam', function(e) {
+    e.stopPropagation();
+    var row = $(this).closest('.email-row');
+    var emailData = row.data('email');
+    if (emailData) {
+      _this.setSpam(emailData.id, true, function() {
+        row.fadeOut(300, function() { $(this).remove(); });
+      });
+    }
+    return false;
+  });
+
+  // Remove tag from email row
+  $(document).on('click', '.email-row-remove-tag', function(e) {
+    e.stopPropagation();
+    var btn = $(this);
+    var tag = btn.data('tag');
+    var row = btn.closest('.email-row');
+    var emailData = row.data('email');
+    if (emailData) {
+      _this.removeTag(emailData.id, tag, function() {
+        emailData.tags = emailData.tags.filter(function(t) { return t !== tag; });
+        row.data('email', emailData);
+        btn.closest('.email-tag-inline').fadeOut(200, function() { $(this).remove(); });
+        if (_this.activeTagFilters.length > 0 && _this.activeTagFilters.indexOf(tag) !== -1) {
+          _this.currentPage = 0;
+          _this.paginateResults();
+        }
+      });
+    }
     return false;
   });
 };
@@ -1151,16 +1062,20 @@ EnronSearch.prototype.renderTagDropdown = function() {
   container.empty();
 
   if (this.allTags.length === 0) {
-    container.html('<p class="no-tags-msg">No tags yet. Create one above.</p>');
     return;
   }
 
   var emailTags = this.currentEmail ? (this.currentEmail.tags || []) : [];
 
-  this.allTags.forEach(function(tag) {
+  // Generate a color for each tag based on its name (consistent coloring)
+  var colors = ['#c45d35', '#4a8f5d', '#5b7bb3', '#8b5bb3', '#d4a847', '#6b6b6b'];
+
+  this.allTags.forEach(function(tag, index) {
     var isChecked = emailTags.indexOf(tag) !== -1;
+    var color = colors[index % colors.length];
     var item = $('\
       <div class="existing-tag-item">\
+        <span class="tag-color-dot" style="background:' + color + '"></span>\
         <input type="checkbox" id="tag-' + tag + '" data-tag="' + tag + '"' + (isChecked ? ' checked' : '') + '>\
         <label for="tag-' + tag + '"></label>\
       </div>');
@@ -1171,6 +1086,7 @@ EnronSearch.prototype.renderTagDropdown = function() {
 
 // Update email tags bar in detail panel
 EnronSearch.prototype.updateEmailTagsBar = function(tags) {
+  var _this = this;
   var tagsBar = $('#email-tags-bar');
   var container = $('#email-tags');
   container.empty();
@@ -1180,8 +1096,15 @@ EnronSearch.prototype.updateEmailTagsBar = function(tags) {
     return;
   }
 
+  // Generate colors for tags
+  var colors = ['#c45d35', '#4a8f5d', '#5b7bb3', '#8b5bb3', '#d4a847', '#6b6b6b'];
+
   tags.forEach(function(tag) {
-    var tagEl = $('<span class="email-tag"><span class="tag-name"></span><button class="remove-tag" data-tag="' + tag + '">×</button></span>');
+    // Get consistent color based on tag index in allTags
+    var tagIndex = _this.allTags.indexOf(tag);
+    var color = colors[(tagIndex >= 0 ? tagIndex : 0) % colors.length];
+
+    var tagEl = $('<span class="email-tag"><span class="tag-dot" style="background:' + color + '"></span><span class="tag-name"></span><button class="remove-tag" data-tag="' + tag + '">×</button></span>');
     tagEl.find('.tag-name').text(tag);
     container.append(tagEl);
   });
@@ -1196,14 +1119,16 @@ EnronSearch.prototype.renderTagFilterDropdown = function() {
   dropdown.empty();
 
   // Add "All" option
-  var allOption = $('<div class="filter-option tag-filter-option' + (!this.activeTagFilter ? ' selected' : '') + '" data-tag="">All emails</div>');
+  var allOption = $('<div class="filter-option tag-filter-all' + (this.activeTagFilters.length === 0 ? ' selected' : '') + '">All emails</div>');
   dropdown.append(allOption);
 
-  // Add each tag as an option
-  this.allTags.forEach(function(tag) {
-    var isSelected = _this.activeTagFilter === tag;
-    var option = $('<div class="filter-option tag-filter-option' + (isSelected ? ' selected' : '') + '" data-tag="' + tag + '"></div>');
-    option.text(tag);
+  // Add each tag with checkbox
+  var colors = ['#c45d35', '#4a8f5d', '#5b7bb3', '#8b5bb3', '#d4a847', '#6b6b6b'];
+  this.allTags.forEach(function(tag, index) {
+    var isChecked = _this.activeTagFilters.indexOf(tag) !== -1;
+    var color = colors[index % colors.length];
+    var option = $('<label class="filter-option tag-filter-check"><input type="checkbox" data-tag="' + tag + '"' + (isChecked ? ' checked' : '') + '><span class="tag-color-dot" style="background:' + color + '"></span><span class="tag-filter-name"></span></label>');
+    option.find('.tag-filter-name').text(tag);
     dropdown.append(option);
   });
 
@@ -1212,51 +1137,66 @@ EnronSearch.prototype.renderTagFilterDropdown = function() {
   }
 };
 
-// Show spam panel
-EnronSearch.prototype.showSpamPanel = function() {
+// Display spam emails in main email list
+EnronSearch.prototype.displaySpamInList = function() {
   var _this = this;
-  var panel = $('#spam-panel');
-  var list = $('#spam-list');
 
-  // Close other panels
-  $('#email-detail-panel').addClass('hidden');
-  $('#bookmarks-panel').addClass('hidden');
-
-  list.html('<p class="no-spam">Loading...</p>');
-  panel.removeClass('hidden');
+  this.showLoading();
 
   // Fetch spam emails from API
   $.ajax({
-    method: 'get',
+    type: 'GET',
     url: '/spam-emails',
     data: { size: 100 },
     success: function(results) {
-      list.empty();
-      if (results.hits.total === 0) {
-        list.html('<p class="no-spam">No spam emails.</p>');
+      _this.hideLoading();
+      _this.searchResults.empty();
+
+      var total = results.hits.total;
+      $('#result-count').text(total);
+      _this.totalResults = total;
+
+      if (total === 0) {
+        $('#empty-state').removeClass('hidden');
+        $('#empty-state h2').text('No Spam');
+        $('#empty-state p').text('Emails marked as spam will appear here.');
+        $('#pagination').addClass('hidden');
         return;
       }
+
+      $('#empty-state').addClass('hidden');
 
       results.hits.hits.forEach(function(hit) {
         var message = hit._source;
         var id = hit._id;
+        var initials = _this.getInitials(message.from);
+        var sender = _this.formatSender(message.from);
+        var dateStr = _this.formatDate(message.date);
 
-        var item = $('\
-          <div class="spam-item">\
-            <div class="spam-header">\
-              <span class="subject"></span>\
-              <button class="unspam-btn" data-id="">Not spam</button>\
+        var element = $('\
+          <div class="email-row">\
+            <div class="email-avatar"></div>\
+            <div class="email-sender"></div>\
+            <div class="email-content">\
+              <div class="email-subject"></div>\
+              <span class="email-date"></span>\
             </div>\
-            <div class="meta"></div>\
-            <p class="body"></p>\
+            <div class="email-actions">\
+              <button class="email-action-btn email-action-unspam" title="Remove from spam" data-id="">\
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path></svg>\
+                <span>Not Spam</span>\
+              </button>\
+            </div>\
           </div>');
 
-        item.find('.subject').text(message.subject || '(no subject)');
-        item.find('.meta').text('From: ' + _this.formatSender(message.from));
-        item.find('.body').text(message.body ? message.body.replace(/[\r\n]+/g, ' ').substring(0, 150) + '...' : '');
-        item.find('.unspam-btn').data('id', id);
+        element.attr('data-id', id);
+        element.find('.email-avatar').text(initials);
+        element.find('.email-sender').text(sender);
+        element.find('.email-subject').text(message.subject || '(no subject)');
+        element.find('.email-date').text(dateStr);
+        element.find('.email-action-unspam').data('id', id);
 
-        // Click to open email
+        // Build email data
         var emailData = {
           id: id,
           subject: message.subject,
@@ -1268,18 +1208,25 @@ EnronSearch.prototype.showSpamPanel = function() {
           tags: message.tags || [],
           spam: true
         };
-        item.data('email', emailData);
-        item.on('click', function(e) {
-          if (!$(e.target).closest('.unspam-btn').length) {
+
+        // Click row to open email
+        element.data('email', emailData);
+        element.on('click', function(e) {
+          if (!$(e.target).closest('.email-actions').length) {
             _this.openEmailModal($(this).data('email'));
           }
         });
 
-        list.append(item);
+        _this.searchResults.append(element);
       });
+
+      $('#pagination').addClass('hidden');
     },
     error: function() {
-      list.html('<p class="no-spam">Error loading spam emails.</p>');
+      _this.hideLoading();
+      $('#empty-state').removeClass('hidden');
+      $('#empty-state h2').text('Error');
+      $('#empty-state p').text('Could not load spam emails.');
     }
   });
 };

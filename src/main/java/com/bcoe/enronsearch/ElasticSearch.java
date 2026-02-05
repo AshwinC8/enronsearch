@@ -277,8 +277,8 @@ public class ElasticSearch {
 		}
 	}
 
-	// Search with optional spam exclusion
-	public SearchResponse search(String query, int from, int size, String sortOrder, boolean excludeSpam) {
+	// Search with optional spam exclusion and tag filter
+	public SearchResponse search(String query, int from, int size, String sortOrder, boolean excludeSpam, String tags) {
 		SortOrder order = "desc".equalsIgnoreCase(sortOrder) ? SortOrder.DESC : SortOrder.ASC;
 
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
@@ -289,6 +289,19 @@ public class ElasticSearch {
 
 		if (excludeSpam) {
 			boolQuery.mustNot(QueryBuilders.termQuery("spam", true));
+		}
+
+		if (tags != null && !tags.isEmpty()) {
+			String[] tagArray = tags.split(",");
+			BoolQueryBuilder tagFilter = QueryBuilders.boolQuery();
+			for (String t : tagArray) {
+				String trimmed = t.trim();
+				if (!trimmed.isEmpty()) {
+					tagFilter.should(QueryBuilders.termQuery("tags", trimmed));
+				}
+			}
+			tagFilter.minimumNumberShouldMatch(1);
+			boolQuery.must(tagFilter);
 		}
 
 		return client
@@ -302,8 +315,8 @@ public class ElasticSearch {
 				.addHighlightedField("from", 0, 0).execute().actionGet();
 	}
 
-	// Browse with optional spam exclusion
-	public SearchResponse browse(int from, int size, String sortOrder, boolean excludeSpam) {
+	// Browse with optional spam exclusion and tag filter
+	public SearchResponse browse(int from, int size, String sortOrder, boolean excludeSpam, String tags) {
 		SortOrder order = "desc".equalsIgnoreCase(sortOrder) ? SortOrder.DESC : SortOrder.ASC;
 
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
@@ -311,6 +324,19 @@ public class ElasticSearch {
 
 		if (excludeSpam) {
 			boolQuery.mustNot(QueryBuilders.termQuery("spam", true));
+		}
+
+		if (tags != null && !tags.isEmpty()) {
+			String[] tagArray = tags.split(",");
+			BoolQueryBuilder tagFilter = QueryBuilders.boolQuery();
+			for (String t : tagArray) {
+				String trimmed = t.trim();
+				if (!trimmed.isEmpty()) {
+					tagFilter.should(QueryBuilders.termQuery("tags", trimmed));
+				}
+			}
+			tagFilter.minimumNumberShouldMatch(1);
+			boolQuery.must(tagFilter);
 		}
 
 		return client
@@ -346,6 +372,33 @@ public class ElasticSearch {
 				.setQuery(QueryBuilders.termQuery("spam", true))
 				.execute().actionGet();
 		return response.getHits().getTotalHits();
+	}
+
+	// Get all unique tags using aggregation
+	public List<String> getAllTags() {
+		List<String> tags = new ArrayList<>();
+		try {
+			SearchResponse response = client
+				.prepareSearch(indexName)
+				.setTypes(mappingName)
+				.setSearchType(SearchType.COUNT)
+				.addAggregation(
+					org.elasticsearch.search.aggregations.AggregationBuilders
+						.terms("all_tags")
+						.field("tags")
+						.size(100)
+				)
+				.execute().actionGet();
+
+			org.elasticsearch.search.aggregations.bucket.terms.Terms agg =
+				response.getAggregations().get("all_tags");
+			for (org.elasticsearch.search.aggregations.bucket.terms.Terms.Bucket bucket : agg.getBuckets()) {
+				tags.add(bucket.getKey());
+			}
+		} catch (Exception e) {
+			System.out.println("Failed to get all tags: " + e);
+		}
+		return tags;
 	}
 
 	public void cleanup() {
