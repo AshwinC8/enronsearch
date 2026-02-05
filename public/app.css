@@ -494,31 +494,69 @@ a:hover {
   text-align: left;
 }
 
-.email-bookmark {
-  width: 32px;
-  height: 32px;
+/* Email row action buttons */
+.email-actions {
   display: flex;
   align-items: center;
+  gap: 0.375rem;
+}
+
+.email-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 100px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.email-action-btn:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+.email-action-btn.email-action-spam:hover {
+  background: rgba(220, 53, 69, 0.08);
+  border-color: rgba(220, 53, 69, 0.3);
+  color: #dc3545;
+}
+
+.email-action-btn.email-action-unspam:hover {
+  background: rgba(74, 143, 93, 0.08);
+  border-color: rgba(74, 143, 93, 0.3);
+  color: var(--success);
+}
+
+/* Inline tag remove button */
+.email-row-remove-tag {
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
-  border-radius: 6px;
-  color: var(--text-tertiary);
-  transition: all 0.2s ease;
   background: transparent;
   border: none;
+  color: var(--text-tertiary);
+  font-size: 0.75rem;
   cursor: pointer;
+  padding: 0 0.125rem;
+  margin-left: 0.125rem;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  line-height: 1;
 }
 
-.email-bookmark:hover {
-  background: var(--bg-tertiary);
+.email-tag-inline:hover .email-row-remove-tag {
+  opacity: 1;
+}
+
+.email-row-remove-tag:hover {
   color: var(--accent);
-}
-
-.email-bookmark.bookmarked {
-  color: var(--accent);
-}
-
-.email-bookmark.bookmarked svg {
-  fill: var(--accent);
 }
 
 /* ==========================================================================
@@ -625,128 +663,6 @@ a:hover {
 }
 
 /* ==========================================================================
-   Detail Panel (Bookmarks)
-   ========================================================================== */
-
-.detail-panel {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 480px;
-  max-width: calc(100vw - var(--sidebar-width));
-  background: white;
-  box-shadow: var(--shadow-lg);
-  z-index: 200;
-  display: flex;
-  flex-direction: column;
-  transform: translateX(100%);
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.detail-panel:not(.hidden) {
-  transform: translateX(0);
-}
-
-.panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1.5rem 2rem;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.panel-header h2 {
-  font-family: var(--font-display);
-  font-size: 1.25rem;
-  font-weight: 400;
-}
-
-.close-btn {
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  border: none;
-  background: transparent;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.close-btn:hover {
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-}
-
-.panel-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 1rem;
-}
-
-/* Bookmark Items in Panel */
-.bookmark-item {
-  padding: 1.25rem;
-  border-radius: 8px;
-  margin-bottom: 0.5rem;
-  transition: background 0.15s ease;
-  cursor: pointer;
-}
-
-.bookmark-item:hover {
-  background: var(--bg-secondary);
-}
-
-.bookmark-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
-  margin-bottom: 0.5rem;
-}
-
-.bookmark-item .subject {
-  font-weight: 500;
-  font-size: 0.9375rem;
-  color: var(--text-primary);
-}
-
-.bookmark-item .meta {
-  font-size: 0.8125rem;
-  color: var(--text-tertiary);
-  margin-bottom: 0.375rem;
-}
-
-.bookmark-item .body {
-  font-size: 0.8125rem;
-  color: var(--text-secondary);
-  line-height: 1.6;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.remove-bookmark {
-  font-size: 0.75rem;
-  color: var(--text-tertiary);
-  transition: color 0.2s ease;
-}
-
-.remove-bookmark:hover {
-  color: #c45d35;
-}
-
-.no-bookmarks {
-  text-align: center;
-  padding: 3rem 1rem;
-  color: var(--text-tertiary);
-}
-
-/* ==========================================================================
    Email Detail Panel (Right Side - Gmail/Outlook Style)
    ========================================================================== */
 
@@ -814,14 +730,6 @@ a:hover {
 .toolbar-btn:hover {
   background: var(--bg-tertiary);
   color: var(--text-primary);
-}
-
-.toolbar-btn.bookmarked {
-  color: var(--accent);
-}
-
-.toolbar-btn.bookmarked svg {
-  fill: var(--accent);
 }
 
 /* Email View Content */
@@ -1120,6 +1028,529 @@ a:hover {
 .email-detail-panel.fullscreen .email-details-expanded {
   padding-left: 5rem;
   padding-right: 2rem;
+}
+
+/* ==========================================================================
+   Tags & Spam
+   ========================================================================== */
+
+/* Tag Dropdown */
+.tag-dropdown-wrapper {
+  position: relative;
+}
+
+.tag-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 260px;
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  z-index: 300;
+  animation: dropdownFadeIn 0.2s ease;
+  overflow: hidden;
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.tag-dropdown-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 1rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: linear-gradient(to bottom, var(--bg-secondary), white);
+}
+
+.tag-dropdown-header svg {
+  color: var(--accent);
+}
+
+.tag-create-section {
+  padding: 0.75rem 1rem;
+  background: white;
+}
+
+.tag-color-picker {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.tag-color {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+.tag-color:hover {
+  transform: scale(1.15);
+}
+
+.tag-color.active {
+  border-color: var(--text-primary);
+  box-shadow: 0 0 0 2px white, 0 0 0 4px currentColor;
+}
+
+.tag-color.active::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  background: white;
+  border-radius: 50%;
+}
+
+.tag-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 0 1rem;
+}
+
+.existing-tags-header {
+  padding: 0.75rem 1rem 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tag-input-wrapper {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.tag-input-wrapper input {
+  flex: 1;
+  padding: 0.625rem 0.875rem;
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  transition: all 0.15s ease;
+}
+
+.tag-input-wrapper input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: white;
+  box-shadow: 0 0 0 3px rgba(196, 93, 53, 0.1);
+}
+
+.add-tag-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.add-tag-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.add-tag-btn:active {
+  transform: scale(0.95);
+}
+
+.existing-tags {
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 0.5rem 0.75rem 0.75rem;
+}
+
+.existing-tags:empty::after {
+  content: 'No tags yet';
+  display: block;
+  text-align: center;
+  padding: 1rem;
+  color: var(--text-tertiary);
+  font-size: 0.8125rem;
+}
+
+.existing-tag-item {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 0.625rem;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-bottom: 0.25rem;
+  transition: background 0.15s ease;
+}
+
+.existing-tag-item:hover {
+  background: var(--bg-secondary);
+}
+
+.existing-tag-item:last-child {
+  margin-bottom: 0;
+}
+
+.existing-tag-item .tag-color-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.existing-tag-item input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.existing-tag-item label {
+  flex: 1;
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.no-tags-msg {
+  padding: 1.5rem 1rem;
+  text-align: center;
+  font-size: 0.8125rem;
+  color: var(--text-tertiary);
+}
+
+/* Email Tags Bar */
+.email-tags-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  background: linear-gradient(to bottom, var(--bg-secondary), white);
+}
+
+.tags-label {
+  font-size: 0.6875rem;
+  color: var(--text-tertiary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.email-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.email-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.3125rem 0.625rem 0.3125rem 0.5rem;
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: 100px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  transition: all 0.15s ease;
+}
+
+.email-tag:hover {
+  border-color: var(--border-dark);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.email-tag .tag-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.email-tag .remove-tag {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  opacity: 0.6;
+  cursor: pointer;
+  border-radius: 50%;
+  margin-left: 0.125rem;
+  transition: all 0.15s ease;
+}
+
+.email-tag .remove-tag:hover {
+  opacity: 1;
+  background: rgba(196, 93, 53, 0.2);
+}
+
+/* Spam button active state */
+.toolbar-btn.is-spam {
+  color: #dc3545;
+  background: rgba(220, 53, 69, 0.1);
+}
+
+.toolbar-btn.is-spam:hover {
+  background: rgba(220, 53, 69, 0.15);
+}
+
+/* Spam item in list */
+.email-row.is-spam {
+  opacity: 0.6;
+  background: var(--bg-secondary);
+}
+
+.email-row.is-spam .email-subject::before {
+  content: "[SPAM] ";
+  color: #dc3545;
+  font-weight: 500;
+}
+
+/* Spam panel items */
+.spam-item {
+  padding: 1.25rem;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+  transition: background 0.15s ease;
+  cursor: pointer;
+}
+
+.spam-item:hover {
+  background: var(--bg-secondary);
+}
+
+.spam-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.spam-item .subject {
+  font-weight: 500;
+  font-size: 0.9375rem;
+  color: var(--text-primary);
+}
+
+.spam-item .meta {
+  font-size: 0.8125rem;
+  color: var(--text-tertiary);
+  margin-bottom: 0.375rem;
+}
+
+.spam-item .body {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.unspam-btn {
+  font-size: 0.75rem;
+  color: var(--accent);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.unspam-btn:hover {
+  background: var(--accent-light);
+}
+
+.no-spam {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--text-tertiary);
+}
+
+/* Tag filter in results header */
+.tag-filter-wrapper {
+  position: relative;
+  margin-left: 0.5rem;
+}
+
+.tag-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tag-filter-btn:hover {
+  background: var(--bg-secondary);
+  border-color: var(--border-dark);
+}
+
+.tag-filter-btn.active {
+  background: var(--accent-light);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.tag-filter-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.tag-filter-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 180px;
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  z-index: 100;
+  animation: dropdownFadeIn 0.15s ease;
+}
+
+.tag-filter-dropdown .filter-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.tag-filter-dropdown .filter-option:hover {
+  background: var(--bg-secondary);
+}
+
+.tag-filter-dropdown .filter-option.selected {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+.tag-filter-dropdown .filter-option:first-child {
+  border-radius: 8px 8px 0 0;
+}
+
+.tag-filter-dropdown .filter-option:last-child {
+  border-radius: 0 0 8px 8px;
+}
+
+/* Tag filter multi-select */
+.tag-filter-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.tag-filter-check input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.tag-filter-check .tag-color-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.tag-filter-name {
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.tag-filter-all.selected {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+/* Inline tags in email rows */
+.email-row-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-top: 0.375rem;
+}
+
+.email-tag-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  background: color-mix(in srgb, var(--tag-color, var(--accent)) 12%, white);
+  border: 1px solid color-mix(in srgb, var(--tag-color, var(--accent)) 25%, transparent);
+  color: color-mix(in srgb, var(--tag-color, var(--accent)) 85%, black);
+  border-radius: 100px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: all 0.15s ease;
+}
+
+.email-tag-inline:hover {
+  background: color-mix(in srgb, var(--tag-color, var(--accent)) 20%, white);
+  border-color: color-mix(in srgb, var(--tag-color, var(--accent)) 40%, transparent);
+}
+
+.email-tag-inline::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--tag-color, var(--accent));
+  flex-shrink: 0;
 }
 
 /* ==========================================================================

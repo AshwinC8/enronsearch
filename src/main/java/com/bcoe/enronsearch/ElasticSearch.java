@@ -18,11 +18,17 @@ import org.elasticsearch.common.joda.time.format.ISODateTimeFormat;
 import org.elasticsearch.common.settings.*;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchType;
+import org.elasticsearch.action.get.GetResponse;
+import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.index.query.FilterBuilders.*;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.search.sort.SortOrder;
 import org.elasticsearch.client.transport.*;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Map;
 
 /*
  Wrapper for ElasticSearch, performs
@@ -97,7 +103,7 @@ public class ElasticSearch {
 
 	private void putMapping() {
 		try {
-			
+
 			XContentBuilder mapping = XContentFactory.jsonBuilder()
 					.startObject().startObject("message")
 						.startObject("properties")
@@ -116,6 +122,13 @@ public class ElasticSearch {
 							.startObject("date")
 								.field("type", "date")
 //								.field("format", "EEE, d MMM yyyy HH:mm:ss Z (z)")
+							.endObject()
+							.startObject("tags")
+								.field("type", "string")
+								.field("index", "not_analyzed")
+							.endObject()
+							.startObject("spam")
+								.field("type", "boolean")
 							.endObject()
 						.endObject()
 					.endObject().endObject();
@@ -194,6 +207,198 @@ public class ElasticSearch {
 				.setFrom(from)
 				.setSize(size)
 				.execute().actionGet();
+	}
+
+	// Get a single email by ID
+	public GetResponse getEmail(String id) {
+		return client.prepareGet(indexName, mappingName, id).execute().actionGet();
+	}
+
+	// Add a tag to an email
+	@SuppressWarnings("unchecked")
+	public void addTag(String emailId, String tag) {
+		try {
+			GetResponse response = getEmail(emailId);
+			if (!response.isExists()) return;
+
+			List<String> tags = (List<String>) response.getSource().get("tags");
+			if (tags == null) {
+				tags = new ArrayList<>();
+			}
+			if (!tags.contains(tag)) {
+				tags.add(tag);
+			}
+
+			UpdateRequest updateRequest = new UpdateRequest(indexName, mappingName, emailId)
+				.doc(XContentFactory.jsonBuilder()
+					.startObject()
+					.field("tags", tags)
+					.endObject());
+			client.update(updateRequest).actionGet();
+		} catch (Exception e) {
+			System.out.println("Failed to add tag: " + e);
+		}
+	}
+
+	// Remove a tag from an email
+	@SuppressWarnings("unchecked")
+	public void removeTag(String emailId, String tag) {
+		try {
+			GetResponse response = getEmail(emailId);
+			if (!response.isExists()) return;
+
+			List<String> tags = (List<String>) response.getSource().get("tags");
+			if (tags == null) return;
+
+			tags.remove(tag);
+
+			UpdateRequest updateRequest = new UpdateRequest(indexName, mappingName, emailId)
+				.doc(XContentFactory.jsonBuilder()
+					.startObject()
+					.field("tags", tags)
+					.endObject());
+			client.update(updateRequest).actionGet();
+		} catch (Exception e) {
+			System.out.println("Failed to remove tag: " + e);
+		}
+	}
+
+	// Set spam status for an email
+	public void setSpam(String emailId, boolean isSpam) {
+		try {
+			UpdateRequest updateRequest = new UpdateRequest(indexName, mappingName, emailId)
+				.doc(XContentFactory.jsonBuilder()
+					.startObject()
+					.field("spam", isSpam)
+					.endObject());
+			client.update(updateRequest).actionGet();
+		} catch (Exception e) {
+			System.out.println("Failed to set spam status: " + e);
+		}
+	}
+
+	// Search with optional spam exclusion and tag filter
+	public SearchResponse search(String query, int from, int size, String sortOrder, boolean excludeSpam, String tags) {
+		SortOrder order = "desc".equalsIgnoreCase(sortOrder) ? SortOrder.DESC : SortOrder.ASC;
+
+		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
+			.must(QueryBuilders.queryString(query).field("_all")
+				.lenient(true).autoGeneratePhraseQueries(true)
+				.analyzeWildcard(true).phraseSlop(10)
+				.lowercaseExpandedTerms(false));
+
+		if (excludeSpam) {
+			boolQuery.mustNot(QueryBuilders.termQuery("spam", true));
+		}
+
+		if (tags != null && !tags.isEmpty()) {
+			String[] tagArray = tags.split(",");
+			BoolQueryBuilder tagFilter = QueryBuilders.boolQuery();
+			for (String t : tagArray) {
+				String trimmed = t.trim();
+				if (!trimmed.isEmpty()) {
+					tagFilter.should(QueryBuilders.termQuery("tags", trimmed));
+				}
+			}
+			tagFilter.minimumNumberShouldMatch(1);
+			boolQuery.must(tagFilter);
+		}
+
+		return client
+				.prepareSearch(indexName)
+				.setTypes(mappingName)
+				.setSearchType(SearchType.DFS_QUERY_THEN_FETCH)
+				.setQuery(boolQuery)
+				.addSort("date", order)
+				.setFrom(from)
+				.setSize(size).addHighlightedField("to", 0, 0)
+				.addHighlightedField("from", 0, 0).execute().actionGet();
+	}
+
+	// Browse with optional spam exclusion and tag filter
+	public SearchResponse browse(int from, int size, String sortOrder, boolean excludeSpam, String tags) {
+		SortOrder order = "desc".equalsIgnoreCase(sortOrder) ? SortOrder.DESC : SortOrder.ASC;
+
+		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
+			.must(QueryBuilders.matchAllQuery());
+
+		if (excludeSpam) {
+			boolQuery.mustNot(QueryBuilders.termQuery("spam", true));
+		}
+
+		if (tags != null && !tags.isEmpty()) {
+			String[] tagArray = tags.split(",");
+			BoolQueryBuilder tagFilter = QueryBuilders.boolQuery();
+			for (String t : tagArray) {
+				String trimmed = t.trim();
+				if (!trimmed.isEmpty()) {
+					tagFilter.should(QueryBuilders.termQuery("tags", trimmed));
+				}
+			}
+			tagFilter.minimumNumberShouldMatch(1);
+			boolQuery.must(tagFilter);
+		}
+
+		return client
+				.prepareSearch(indexName)
+				.setTypes(mappingName)
+				.setSearchType(SearchType.DFS_QUERY_THEN_FETCH)
+				.setQuery(boolQuery)
+				.addSort("date", order)
+				.setFrom(from)
+				.setSize(size)
+				.execute().actionGet();
+	}
+
+	// Get all spam emails
+	public SearchResponse getSpamEmails(int from, int size) {
+		return client
+				.prepareSearch(indexName)
+				.setTypes(mappingName)
+				.setSearchType(SearchType.DFS_QUERY_THEN_FETCH)
+				.setQuery(QueryBuilders.termQuery("spam", true))
+				.addSort("date", SortOrder.DESC)
+				.setFrom(from)
+				.setSize(size)
+				.execute().actionGet();
+	}
+
+	// Get count of spam emails
+	public long getSpamCount() {
+		SearchResponse response = client
+				.prepareSearch(indexName)
+				.setTypes(mappingName)
+				.setSearchType(SearchType.COUNT)
+				.setQuery(QueryBuilders.termQuery("spam", true))
+				.execute().actionGet();
+		return response.getHits().getTotalHits();
+	}
+
+	// Get all unique tags using aggregation
+	public List<String> getAllTags() {
+		List<String> tags = new ArrayList<>();
+		try {
+			SearchResponse response = client
+				.prepareSearch(indexName)
+				.setTypes(mappingName)
+				.setSearchType(SearchType.COUNT)
+				.addAggregation(
+					org.elasticsearch.search.aggregations.AggregationBuilders
+						.terms("all_tags")
+						.field("tags")
+						.size(100)
+				)
+				.execute().actionGet();
+
+			org.elasticsearch.search.aggregations.bucket.terms.Terms agg =
+				response.getAggregations().get("all_tags");
+			for (org.elasticsearch.search.aggregations.bucket.terms.Terms.Bucket bucket : agg.getBuckets()) {
+				tags.add(bucket.getKey());
+			}
+		} catch (Exception e) {
+			System.out.println("Failed to get all tags: " + e);
+		}
+		return tags;
 	}
 
 	public void cleanup() {

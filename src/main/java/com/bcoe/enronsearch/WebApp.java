@@ -56,10 +56,13 @@ public class WebApp
                 String fromParam = request.queryParams("from");
                 String sizeParam = request.queryParams("size");
                 String sortParam = request.queryParams("sort");
+                String excludeSpamParam = request.queryParams("excludeSpam");
+                String tags = request.queryParams("tags");
                 int from = fromParam != null ? Integer.parseInt(fromParam) : 0;
                 int size = sizeParam != null ? Integer.parseInt(sizeParam) : 30;
                 String sort = sortParam != null ? sortParam : "asc";
-                return es.search( request.queryParams("q"), from, size, sort ).toString();
+                boolean excludeSpam = !"false".equalsIgnoreCase(excludeSpamParam);
+                return es.search( request.queryParams("q"), from, size, sort, excludeSpam, tags ).toString();
             }
         });
 
@@ -71,10 +74,110 @@ public class WebApp
                 String fromParam = request.queryParams("from");
                 String sizeParam = request.queryParams("size");
                 String sortParam = request.queryParams("sort");
+                String excludeSpamParam = request.queryParams("excludeSpam");
+                String tags = request.queryParams("tags");
                 int from = fromParam != null ? Integer.parseInt(fromParam) : 0;
                 int size = sizeParam != null ? Integer.parseInt(sizeParam) : 30;
                 String sort = sortParam != null ? sortParam : "asc";
-                return es.browse(from, size, sort).toString();
+                boolean excludeSpam = !"false".equalsIgnoreCase(excludeSpamParam);
+                return es.browse(from, size, sort, excludeSpam, tags).toString();
+            }
+        });
+
+        // Get all unique tags
+        get(new Route("/tags") {
+            @Override
+            public Object handle(Request request, Response response) {
+                response.type("application/json");
+                java.util.List<String> tags = es.getAllTags();
+                StringBuilder sb = new StringBuilder("[");
+                for (int i = 0; i < tags.size(); i++) {
+                    if (i > 0) sb.append(",");
+                    sb.append("\"").append(tags.get(i)).append("\"");
+                }
+                sb.append("]");
+                return sb.toString();
+            }
+        });
+
+        // Get a single email by ID
+        get(new Route("/email/:id") {
+            @Override
+            public Object handle(Request request, Response response) {
+                response.type("application/json");
+                String id = request.params(":id");
+                return es.getEmail(id).getSourceAsString();
+            }
+        });
+
+        // Add tag to an email
+        post(new Route("/tag") {
+            @Override
+            public Object handle(Request request, Response response) {
+                response.type("application/json");
+                String emailId = request.queryParams("emailId");
+                String tag = request.queryParams("tag");
+                if (emailId == null || tag == null) {
+                    response.status(400);
+                    return "{\"error\": \"emailId and tag are required\"}";
+                }
+                es.addTag(emailId, tag.toLowerCase().trim());
+                return "{\"success\": true}";
+            }
+        });
+
+        // Remove tag from an email
+        post(new Route("/untag") {
+            @Override
+            public Object handle(Request request, Response response) {
+                response.type("application/json");
+                String emailId = request.queryParams("emailId");
+                String tag = request.queryParams("tag");
+                if (emailId == null || tag == null) {
+                    response.status(400);
+                    return "{\"error\": \"emailId and tag are required\"}";
+                }
+                es.removeTag(emailId, tag.toLowerCase().trim());
+                return "{\"success\": true}";
+            }
+        });
+
+        // Set spam status for an email
+        post(new Route("/spam") {
+            @Override
+            public Object handle(Request request, Response response) {
+                response.type("application/json");
+                String emailId = request.queryParams("emailId");
+                String isSpamParam = request.queryParams("isSpam");
+                if (emailId == null) {
+                    response.status(400);
+                    return "{\"error\": \"emailId is required\"}";
+                }
+                boolean isSpam = !"false".equalsIgnoreCase(isSpamParam);
+                es.setSpam(emailId, isSpam);
+                return "{\"success\": true}";
+            }
+        });
+
+        // Get spam emails
+        get(new Route("/spam-emails") {
+            @Override
+            public Object handle(Request request, Response response) {
+                response.type("application/json");
+                String fromParam = request.queryParams("from");
+                String sizeParam = request.queryParams("size");
+                int from = fromParam != null ? Integer.parseInt(fromParam) : 0;
+                int size = sizeParam != null ? Integer.parseInt(sizeParam) : 30;
+                return es.getSpamEmails(from, size).toString();
+            }
+        });
+
+        // Get spam count
+        get(new Route("/spam-count") {
+            @Override
+            public Object handle(Request request, Response response) {
+                response.type("application/json");
+                return "{\"count\": " + es.getSpamCount() + "}";
             }
         });
 
